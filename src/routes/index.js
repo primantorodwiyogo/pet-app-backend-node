@@ -16,4 +16,8 @@ router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
 router.get('/auth/me', auth, authController.me);
 
+const postRoutes = require('./post.routes');
+
+router.use(postRoutes);
+
 module.exports = router;

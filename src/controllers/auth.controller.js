@@ -6,26 +6,26 @@ const jwt = require('jsonwebtoken');
 exports.register = async (req, res) => {
     const { name, email, password } = req.body;
 
-
     try {
         const hash = await bcrypt.hash(password, 10);
-
 
         const [result] = await pool.query(
             'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
             [name, email, hash]
         );
 
-
         const token = jwt.sign(
-            { userId: result.insertId },
+            {
+                id: result.insertId,
+                email: email
+            },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
 
-
-        res.json({ token });
+        res.status(201).json({ token });
     } catch (err) {
+        console.error(err);
         res.status(400).json({ error: 'Email already exists' });
     }
 };
@@ -56,7 +56,10 @@ exports.login = async (req, res) => {
 
 
     const token = jwt.sign(
-        { userId: user.id },
+        {
+            id: user.id,
+            email: user.email
+        },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
     );
@@ -67,14 +70,12 @@ exports.login = async (req, res) => {
 
 
 exports.me = async (req, res) => {
-    const userId = req.userId;
-
+    const userId = req.user.id;
 
     const [rows] = await pool.query(
         'SELECT id, name, email, phone, avatar_url, created_at FROM users WHERE id = ?',
         [userId]
     );
-
 
     res.json(rows[0]);
 };
