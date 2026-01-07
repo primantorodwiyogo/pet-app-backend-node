@@ -3,6 +3,7 @@ const path = require('path');
 const cors = require('cors');
 
 const routes = require('./routes');
+require('./models');
 
 /**
  * ======================
@@ -16,7 +17,11 @@ const app = express();
  * GLOBAL MIDDLEWARE
  * ======================
  */
-app.use(cors());
+app.use(cors({
+    origin: '*', // sementara, nanti bisa dibatasi
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // ⬇️ INI HARUS SETELAH app dibuat
 app.use(express.json());
