@@ -6,6 +6,7 @@ const upload = require('../middleware/upload.middleware');
 const postController = require('../controllers/post.controller');
 
 router.get('/posts', postController.getPosts);
+router.get('/posts/mine', auth, postController.getMyPosts);
 router.get('/posts/:id', postController.getPostById);
 
 

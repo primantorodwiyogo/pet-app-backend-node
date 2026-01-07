@@ -237,3 +237,52 @@ exports.getPostById = async (req, res) => {
         });
     }
 };
+
+// src/controllers/post.controllers.js
+
+exports.getMyPosts = async (req, res) => {
+    const userId = req.user.id; // dari middleware auth
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    try {
+        // hitung total
+        const [countRows] = await db.query(
+            `SELECT COUNT(*) AS total FROM posts WHERE user_id = ?`,
+            [userId]
+        );
+
+        // ambil data posts user
+        const [rows] = await db.query(
+            `
+      SELECT
+        p.id,
+        p.type,
+        p.title,
+        p.description,
+        p.location,
+        p.created_at,
+        (SELECT image_url FROM post_images WHERE post_id = p.id LIMIT 1) AS image,
+        COUNT(pv.id) AS views
+      FROM posts p
+      LEFT JOIN post_views pv ON pv.post_id = p.id
+      WHERE p.user_id = ?
+      GROUP BY p.id, p.type, p.title, p.description, p.location, p.created_at
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+      `,
+            [userId, limit, offset]
+        );
+
+        res.json({
+            page,
+            limit,
+            total: countRows[0].total,
+            data: rows,
+        });
+    } catch (err) {
+        console.error("GET MY POSTS ERROR:", err.message);
+        res.status(500).json({ error: "Failed to fetch my posts" });
+    }
+};
