@@ -1,59 +1,63 @@
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
-
-const routes = require('./routes');
-require('./models');
-
 /**
- * ======================
- * INIT APP (WAJIB PALING ATAS)
- * ======================
+ * =========================================
+ * APP INITIALIZATION
+ * =========================================
  */
+require('dotenv').config();
+
+const express = require('express');
 const app = express();
 
 /**
- * ======================
- * GLOBAL MIDDLEWARE
- * ======================
+ * =========================================
+ * CORE MIDDLEWARE
+ * =========================================
  */
-app.use(cors({
-    origin: '*', // sementara, nanti bisa dibatasi
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// ⬇️ INI HARUS SETELAH app dibuat
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /**
- * ======================
- * STATIC FILES
- * ======================
+ * =========================================
+ * DATABASE INITIALIZATION
+ * =========================================
  */
-app.use(
-    '/uploads',
-    express.static(path.join(__dirname, 'uploads'))
-);
+require('./config/database'); // init sequelize connection
+require('./models'); // load & register model relations
 
 /**
- * ======================
+ * =========================================
+ * API DOCUMENTATION (SWAGGER)
+ * =========================================
+ */
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./docs/swagger');
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+/**
+ * =========================================
  * ROUTES
- * ======================
+ * =========================================
  */
-app.use('/api', routes);
+const routes = require('./routes');
+app.use('/', routes);
 
 /**
- * ======================
- * ERROR HANDLER
- * ======================
+ * =========================================
+ * GLOBAL ERROR HANDLER (OPTIONAL BUT CLEAN)
+ * =========================================
  */
 app.use((err, req, res, next) => {
-    console.error('GLOBAL ERROR:', err);
-    res.status(500).json({
-        error: err.message || 'Internal Server Error'
-    });
+  console.error('Unhandled Error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal Server Error'
+  });
 });
 
+/**
+ * =========================================
+ * EXPORT APP
+ * =========================================
+ */
 module.exports = app;
