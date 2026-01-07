@@ -1,81 +1,62 @@
-const pool = require('../config/database');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-
-
-exports.register = async (req, res) => {
-    const { name, email, password } = req.body;
-
-    try {
-        const hash = await bcrypt.hash(password, 10);
-
-        const [result] = await pool.query(
-            'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-            [name, email, hash]
-        );
-
-        const token = jwt.sign(
-            {
-                id: result.insertId,
-                email: email
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        res.status(201).json({ token });
-    } catch (err) {
-        console.error(err);
-        res.status(400).json({ error: 'Email already exists' });
-    }
-};
-
+const User = require('../models/user.model');
+const response = require('../utils/response');
+const {
+    generateAccessToken,
+    generateRefreshToken
+} = require('../utils/jwt');
 
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
 
+        const user = await User.findOne({ where: { email } });
+        if (!user) {
+            return response.error(res, 'User not found', 404);
+        }
 
-    const [rows] = await pool.query(
-        'SELECT * FROM users WHERE email = ?',
-        [email]
-    );
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            return response.error(res, 'Invalid credentials', 401);
+        }
 
+        const payload = { id: user.id };
 
-    if (rows.length === 0) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return response.success(res, {
+            accessToken: generateAccessToken(payload),
+            refreshToken: generateRefreshToken(payload),
+            expiresIn: 3600,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email
+            }
+        }, 'Login success');
+    } catch (err) {
+        return response.error(res, err.message, 500);
     }
-
-
-    const user = rows[0];
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-
-
-    if (!isMatch) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-
-    const token = jwt.sign(
-        {
-            id: user.id,
-            email: user.email
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-    );
-
-
-    res.json({ token });
 };
 
+exports.register = async (req, res) => {
+    try {
+        const { name, email, password, phone } = req.body;
 
-exports.me = async (req, res) => {
-    const userId = req.user.id;
+        const exists = await User.findOne({ where: { email } });
+        if (exists) {
+            return response.error(res, 'Email already registered', 400);
+        }
 
-    const [rows] = await pool.query(
-        'SELECT id, name, email, phone, avatar_url, created_at FROM users WHERE id = ?',
-        [userId]
-    );
+        const user = await User.create({
+            name,
+            email,
+            password_hash: password,
+            phone
+        });
 
-    res.json(rows[0]);
+        return response.success(res, {
+            id: user.id,
+            email: user.email
+        }, 'Register success', 201);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
 };

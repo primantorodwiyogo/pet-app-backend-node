@@ -22,7 +22,7 @@ router.get('/db-test', dbTest);
 // Auth routes
 router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
-router.get('/auth/me', auth, authController.me);
+// router.get('/auth/me', auth, authController.me);
 
 // Other feature routes
 router.use(chatRoutes);
